@@ -144,6 +144,14 @@ curl -X PUT "http://localhost:8000/products/1" \
 curl -X DELETE "http://localhost:8000/products/1"
 ```
 
+## Screenshots
+
+Here's a preview of the Product Tracker application:
+
+![Product Tracker Screenshot](./screenshot.png)
+
+*Note: Add a screenshot.png file to the root directory to display the application preview.*
+
 ## Models
 
 ### Product
