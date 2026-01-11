@@ -161,3 +161,13 @@ curl -X DELETE "http://localhost:8000/products/1"
 - [Uvicorn](https://www.uvicorn.org/) - ASGI server implementation
 - [python-dotenv](https://github.com/theskumar/python-dotenv) - Environment variable management
 
+## Special Thanks
+
+Thanks to Telusko
+
+## Author
+
+**Akhil Nayak**
+
+ThankYou.Peace.
+
