@@ -148,9 +148,9 @@ curl -X DELETE "http://localhost:8000/products/1"
 
 Here's a preview of the Product Tracker application:
 
-![Product Tracker Screenshot](./screenshot.png)
+![Product Tracker Screenshot](./screenshot/full_screen.png)
 
-*Note: Add a screenshot.png file to the root directory to display the application preview.*
+*Note: The screenshot is located in the screenshot folder.*
 
 ## Models
 
