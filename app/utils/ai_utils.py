@@ -12,15 +12,48 @@ def clean_llm_json(raw_response: str):
     # Remove any explanations after the JSON
     raw_response = raw_response.strip()
     
-    # Find the first { and last } to extract just the JSON
-    first_brace = raw_response.find('{')
-    last_brace = raw_response.rfind('}')
+    # Find all JSON objects in the response
+    json_objects = []
+    start = 0
     
-    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-        json_str = raw_response[first_brace:last_brace + 1]
-        return json.loads(json_str)
+    while True:
+        first_brace = raw_response.find('{', start)
+        if first_brace == -1:
+            break
+            
+        # Find matching closing brace
+        brace_count = 0
+        last_brace = -1
+        
+        for i in range(first_brace, len(raw_response)):
+            if raw_response[i] == '{':
+                brace_count += 1
+            elif raw_response[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    last_brace = i
+                    break
+        
+        if last_brace != -1 and last_brace > first_brace:
+            json_str = raw_response[first_brace:last_brace + 1]
+            try:
+                json_obj = json.loads(json_str)
+                json_objects.append(json_obj)
+            except json.JSONDecodeError:
+                pass  # Skip invalid JSON
+            start = last_brace + 1
+        else:
+            break
     
-    raise ValueError("No valid JSON found in response")
+    if not json_objects:
+        raise ValueError("No valid JSON found in response")
+    
+    # Merge all JSON objects
+    merged_result = {}
+    for obj in json_objects:
+        merged_result.update(obj)
+    
+    return merged_result
 
 def llm_call(prompt: str, temperature: float = 0.0) -> str:
     """Simple LLM call function using the configured AI client."""
@@ -31,8 +64,9 @@ def llm_call(prompt: str, temperature: float = 0.0) -> str:
     )
     
     raw_content = response.choices[0].message.content.strip()
+    # print("Raw content:", raw_content,"\n\n")
     clean_filters = clean_llm_json(raw_content)
-    # print("Raw content:", raw_content, clean_filters)
+    # print("Raw content:", raw_content, clean_filters,"\n\n")
     return clean_filters
 
 
@@ -50,13 +84,10 @@ def llm_to_filter(user_query: str) -> ProductFilters:
     Rules:
     - Include misspellings AND correct spellings in contains arrays
     - Put same keywords in both name.contains and description.contains
+    - Create similar words for those keywords and include them as well in the contains arrays
     - Use lt for "under/less", gt for "over/more"
     - Omit fields not mentioned
     - Return ONLY JSON, no markdown
-
-    Examples:
-    Query: "cheap iphne under 500"
-    Output: {{"name": {{"contains": ["cheap", "iphone", "iphne"]}}, "description": {{"contains": ["cheap", "iphone", "iphne"]}}, "price": {{"lt": 500}}}}
 
     Query: "{user_query}"
 

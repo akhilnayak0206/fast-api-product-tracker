@@ -178,14 +178,18 @@ function App() {
         />
 
         <div className="content-grid">
-          <ProductForm 
-            editId={editId}
-            loading={loading}
-            onSubmit={handleProductSubmit}
-            onCancel={resetForm}
-          />
+          <div className="product-form-container">
+            <ProductForm 
+              editId={editId}
+              loading={loading}
+              onSubmit={handleProductSubmit}
+              onCancel={resetForm}
+            />
+          </div>
           
-          <TaglineSection />
+          <div className="tagline-section-container">
+            <TaglineSection />
+          </div>
 
           {/* Tab Navigation */}
           <div className="tabs-container">
