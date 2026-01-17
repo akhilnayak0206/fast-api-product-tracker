@@ -1,75 +1,39 @@
 import React, { useEffect, useState, useMemo } from "react";
-import axios from "axios";
 import "./App.css";
 import TaglineSection from "./TaglineSection";
-
-const api = axios.create({
-  baseURL: "http://localhost:8000",
-});
+import Header from "./components/Header";
+import SearchBar from "./components/SearchBar";
+import ProductForm from "./components/ProductForm";
+import ProductTable from "./components/ProductTable";
+import AiSearchResults from "./components/AiSearchResults";
+import Footer from "./components/Footer";
+import { productAPI, aiAPI } from "./api/api";
 
 function App() {
   const [products, setProducts] = useState([]);
-  const [form, setForm] = useState({
-    id: "",
-    name: "",
-    description: "",
-    price: "",
-    quantity: "",
-  });
   const [editId, setEditId] = useState(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
+  const [aiSearchResults, setAiSearchResults] = useState([]);
+  const [showAiResults, setShowAiResults] = useState(false);
   const [sortField, setSortField] = useState("id");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  // Auto-dismiss messages after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage("");
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        setError("");
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
 
   // Fetch all products
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/products/");
-      setProducts(res.data);
-      setError("");
+      const res = await productAPI.getAll();
+      setProducts(res.data.products || res.data);
     } catch (err) {
-      setError("Failed to fetch products");
+      console.error("Failed to fetch products:", err);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    // Inline initial fetch to avoid referencing external deps
-    const run = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get("/products/");
-        setProducts(res.data);
-        setError("");
-      } catch (err) {
-        setError("Failed to fetch products");
-      }
-      setLoading(false);
-    };
-    run();
+    fetchProducts();
   }, []);
 
   // Handle sorting
@@ -118,257 +82,113 @@ function App() {
   }, [products, filter, sortField, sortDirection]);
 
   // Handle form input
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleEdit = (product) => {
+    setEditId(product.id);
   };
 
   // Reset form
   const resetForm = () => {
-    setForm({ id: "", name: "", description: "", price: "", quantity: "" });
     setEditId(null);
   };
 
   // Create or update product
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleProductSubmit = async (formData) => {
     setLoading(true);
-    setMessage("");
-    setError("");
     try {
       if (editId) {
-        await api.put(`/products/${editId}`, {
-          ...form,
-          id: Number(form.id),
-          price: Number(form.price),
-          quantity: Number(form.quantity),
-        });
-        setMessage("Product updated successfully");
+        await productAPI.update(editId, formData);
       } else {
-        await api.post("/products/", {
-          ...form,
-          id: Number(form.id),
-          price: Number(form.price),
-          quantity: Number(form.quantity),
-        });
-        setMessage("Product created successfully");
+        await productAPI.create(formData);
       }
       resetForm();
       fetchProducts();
-    } catch (err) {
-      setError(err.response?.data?.detail || "Operation failed");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // Edit product
-  const handleEdit = (product) => {
-    setForm({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      quantity: product.quantity,
-    });
-    setEditId(product.id);
-    setMessage("");
-    setError("");
+  // Handle AI search
+  const handleAiSearch = async (query) => {
+    if (!query.trim()) {
+      setShowAiResults(false);
+      setAiSearchResults([]);
+      return;
+    }
+    
+    try {
+      const res = await aiAPI.search(query);
+      setAiSearchResults(res.data);
+      setShowAiResults(true);
+    } catch (err) {
+      console.error("AI search failed:", err);
+      setAiSearchResults([]);
+      setShowAiResults(false);
+    }
   };
 
   // Delete product
   const handleDelete = async (id) => {
     const ok = window.confirm("Delete this product?");
     if (!ok) return;
+    
     setLoading(true);
-    setMessage("");
-    setError("");
     try {
-      await api.delete(`/products/${id}`);
-      setMessage("Product deleted successfully");
+      await productAPI.delete(id);
       fetchProducts();
     } catch (err) {
-      setError("Delete failed");
+      console.error("Delete failed:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const currency = (n) =>
-    typeof n === "number" ? n.toFixed(2) : Number(n || 0).toFixed(2);
 
   return (
     <div className="app-bg">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-badge">📦</span>
-          <h1>Product Tracker</h1>
-        </div>
-        <div className="top-actions">
-          <button className="btn btn-light" onClick={fetchProducts} disabled={loading}>
-            Refresh
-          </button>
-        </div>
-      </header>
+      <Header onRefresh={fetchProducts} loading={loading} />
 
       <div className="container">
-        <div className="stats">
-          <div className="chip">Total: {products.length}</div>
-          <div className="search">
-            <input
-              type="text"
-              placeholder="Search by id, name or description..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-          </div>
-        </div>
+        <SearchBar 
+          filter={filter}
+          setFilter={setFilter}
+          totalProducts={products.length}
+          onAiSearch={handleAiSearch}
+        />
 
         <div className="content-grid">
-          <div className="card form-card">
-            <h2>{editId ? "Edit Product" : "Add Product"}</h2>
-            <form onSubmit={handleSubmit} className="product-form">
-              <input
-                type="number"
-                name="id"
-                placeholder="ID"
-                value={form.id}
-                onChange={handleChange}
-                required
-                disabled={!!editId}
-              />
-              <input
-                type="text"
-                name="name"
-                placeholder="Name"
-                value={form.name}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="text"
-                name="description"
-                placeholder="Description"
-                value={form.description}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="number"
-                name="price"
-                placeholder="Price"
-                value={form.price}
-                onChange={handleChange}
-                required
-                step="0.01"
-              />
-              <input
-                type="number"
-                name="quantity"
-                placeholder="Quantity"
-                value={form.quantity}
-                onChange={handleChange}
-                required
-              />
-              <div className="form-actions">
-                <button className="btn" type="submit" disabled={loading}>
-                  {editId ? "Update" : "Add"}
-                </button>
-                {editId && (
-                  <button
-                    className="btn btn-secondary"
-                    type="button"
-                    onClick={() => {
-                      resetForm();
-                      setMessage("");
-                      setError("");
-                    }}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
-            {message && <div className="success-msg">{message}</div>}
-            {error && <div className="error-msg">{error}</div>}
-          </div>
+          <ProductForm 
+            editId={editId}
+            loading={loading}
+            onSubmit={handleProductSubmit}
+            onCancel={resetForm}
+          />
           
           <TaglineSection />
 
-          <div className="card list-card">
-            <h2>Products</h2>
-            {loading ? (
-              <div className="loader">Loading...</div>
-            ) : (
-              <div className="scroll-x">
-                <table className="product-table">
-                  <thead>
-                    <tr>
-                      <th 
-                        className={`sortable ${sortField === 'id' ? `sort-${sortDirection}` : ''}`}
-                        onClick={() => handleSort('id')}
-                      >
-                        ID
-                      </th>
-                      <th 
-                        className={`sortable ${sortField === 'name' ? `sort-${sortDirection}` : ''}`}
-                        onClick={() => handleSort('name')}
-                      >
-                        Name
-                      </th>
-                      <th>Description</th>
-                      <th 
-                        className={`sortable ${sortField === 'price' ? `sort-${sortDirection}` : ''}`}
-                        onClick={() => handleSort('price')}
-                      >
-                        Price
-                      </th>
-                      <th 
-                        className={`sortable ${sortField === 'quantity' ? `sort-${sortDirection}` : ''}`}
-                        onClick={() => handleSort('quantity')}
-                      >
-                        Quantity
-                      </th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProducts.map((p) => (
-                      <tr key={p.id}>
-                        <td>{p.id}</td>
-                        <td className="name-cell">{p.name}</td>
-                        <td className="desc-cell" title={p.description}>{p.description}</td>
-                        <td className="price-cell">${currency(p.price)}</td>
-                        <td>
-                          <span className="qty-badge">{p.quantity}</span>
-                        </td>
-                        <td>
-                          <div className="row-actions">
-                            <button className="btn btn-edit" onClick={() => handleEdit(p)}>
-                              Edit
-                            </button>
-                            <button className="btn btn-delete" onClick={() => handleDelete(p.id)}>
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredProducts.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="empty">
-                          No products found.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <AiSearchResults 
+            showAiResults={showAiResults}
+            aiSearchResults={aiSearchResults}
+            onClear={() => {
+              setShowAiResults(false);
+              setAiSearchResults([]);
+            }}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+
+          <ProductTable 
+            products={filteredProducts}
+            loading={loading}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
         </div>
       </div>
       
-      <footer className="app-footer">
-        <p>Thanks to Telusko</p>
-      </footer>
+      <Footer />
     </div>
   );
 }
