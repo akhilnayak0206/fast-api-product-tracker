@@ -10,5 +10,5 @@ export const API_URLS = {
   PRODUCT_BY_ID: (id) => `${API_BASE_URL}/api/v1/products/${id}`,
   
   // AI Search endpoint (if exists)
-  AI_SEARCH: `${API_BASE_URL}/api/v1/product/ai-search`,
+  AI_SEARCH: `${API_BASE_URL}/api/v1/ai/product-search`,
 };

@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from app.services.ai_service import get_ai_product_filters
 from app.repositories.product_repository import ProductRepository
 from app.core.database import get_db
-from app.models.schemas import ProductResponse, ProductListResponse
+from app.models.schemas import ProductResponse, ProductListResponse, ProductQuery
+from app.utils.ai_utils import llm_call
 
 router = APIRouter()
 
@@ -17,13 +18,13 @@ async def debug_ai_product_filters(user_query: str):
 
 @router.post("/product-search", response_model=ProductListResponse)
 async def search_products_with_ai(
-    user_query: str,
+    query: ProductQuery,
     db: Session = Depends(get_db)
 ):
     """Search products using AI-generated filters from natural language query."""
     try:
         # Generate filters using AI
-        ai_filters = get_ai_product_filters(user_query)
+        ai_filters = get_ai_product_filters(query.user_query)
         
         # Create repository and search with filters
         product_repo = ProductRepository(db)

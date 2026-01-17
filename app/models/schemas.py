@@ -55,6 +55,11 @@ class ProductListResponse(BaseModel):
     count: int
 
 
+class ProductQuery(BaseModel):
+    """Schema for AI product search query"""
+    user_query: str
+
+
 class ErrorResponse(BaseModel):
     error: str
     message: str

@@ -5,7 +5,6 @@ import Header from "./components/Header";
 import SearchBar from "./components/SearchBar";
 import ProductForm from "./components/ProductForm";
 import ProductTable from "./components/ProductTable";
-import AiSearchResults from "./components/AiSearchResults";
 import Footer from "./components/Footer";
 import { productAPI, aiAPI } from "./api/api";
 
@@ -15,7 +14,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
   const [aiSearchResults, setAiSearchResults] = useState([]);
-  const [showAiResults, setShowAiResults] = useState(false);
+  const [aiSearchLoading, setAiSearchLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("products"); // "products" or "ai-search"
   const [sortField, setSortField] = useState("id");
   const [sortDirection, setSortDirection] = useState("asc");
 
@@ -81,6 +81,26 @@ function App() {
     });
   }, [products, filter, sortField, sortDirection]);
 
+  // AI search results with sorting
+  const sortedAiResults = useMemo(() => {
+    return aiSearchResults.sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      
+      if (sortField === "id" || sortField === "price" || sortField === "quantity") {
+        aVal = Number(aVal);
+        bVal = Number(bVal);
+      } else {
+        aVal = String(aVal).toLowerCase();
+        bVal = String(bVal).toLowerCase();
+      }
+      
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [aiSearchResults, sortField, sortDirection]);
+
   // Handle form input
   const handleEdit = (product) => {
     setEditId(product.id);
@@ -108,21 +128,23 @@ function App() {
   };
 
   // Handle AI search
-  const handleAiSearch = async (query) => {
+  const handleAiSearch = async (query, signal = null) => {
     if (!query.trim()) {
-      setShowAiResults(false);
       setAiSearchResults([]);
       return;
     }
     
     try {
-      const res = await aiAPI.search(query);
-      setAiSearchResults(res.data);
-      setShowAiResults(true);
+      const res = await aiAPI.search(query, signal);
+      if (!signal?.aborted) {
+        setAiSearchResults(res.data.products || []);
+        setActiveTab("ai-search"); // Switch to AI search tab when results are available
+      }
     } catch (err) {
-      console.error("AI search failed:", err);
-      setAiSearchResults([]);
-      setShowAiResults(false);
+      if (!signal?.aborted && err.name !== 'AbortError') {
+        console.error("AI search failed:", err);
+        setAiSearchResults([]);
+      }
     }
   };
 
@@ -165,26 +187,50 @@ function App() {
           
           <TaglineSection />
 
-          <AiSearchResults 
-            showAiResults={showAiResults}
-            aiSearchResults={aiSearchResults}
-            onClear={() => {
-              setShowAiResults(false);
-              setAiSearchResults([]);
-            }}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+          {/* Tab Navigation */}
+          <div className="tabs-container">
+            <div className="tabs">
+              <button 
+                className={`tab-button ${activeTab === "products" ? "active" : ""}`}
+                onClick={() => setActiveTab("products")}
+              >
+                All Products ({products.length})
+              </button>
+              <button 
+                className={`tab-button ${activeTab === "ai-search" ? "active" : ""}`}
+                onClick={() => setActiveTab("ai-search")}
+              >
+                AI Search Results ({aiSearchResults.length})
+              </button>
+            </div>
+          </div>
 
-          <ProductTable 
-            products={filteredProducts}
-            loading={loading}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
+          {/* Tab Content */}
+          {activeTab === "products" && (
+            <ProductTable 
+              products={filteredProducts}
+              loading={loading}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              isAiSearch={false}
+            />
+          )}
+          
+          {activeTab === "ai-search" && (
+            <ProductTable 
+              products={sortedAiResults}
+              loading={aiSearchLoading}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              isAiSearch={true}
+            />
+          )}
         </div>
       </div>
       
