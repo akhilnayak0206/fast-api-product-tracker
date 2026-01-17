@@ -7,16 +7,17 @@ const ProductTable = ({
   sortDirection, 
   onSort, 
   onEdit, 
-  onDelete 
+  onDelete,
+  isAiSearch = false 
 }) => {
   const currency = (n) =>
     typeof n === "number" ? n.toFixed(2) : Number(n || 0).toFixed(2);
 
   return (
     <div className="card list-card">
-      <h2>Products</h2>
+      <h2>{isAiSearch ? 'AI Search Results' : 'Products'}</h2>
       {loading ? (
-        <div className="loader">Loading...</div>
+        <div className="loader">{isAiSearch ? 'Searching with AI...' : 'Loading...'}</div>
       ) : (
         <div className="scroll-x">
           <table className="product-table">
@@ -75,7 +76,7 @@ const ProductTable = ({
               {products.length === 0 && (
                 <tr>
                   <td colSpan={6} className="empty">
-                    No products found.
+                    {isAiSearch ? 'No products found matching your AI search.' : 'No products found.'}
                   </td>
                 </tr>
               )}

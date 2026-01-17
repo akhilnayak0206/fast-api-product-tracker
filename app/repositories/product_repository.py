@@ -80,6 +80,7 @@ class ProductRepository:
         """Retrieve products with AI-generated filters"""
         try:
             q = self.db.query(self.model)
+            all_conditions = []
 
             # Name search - handle array of search terms with OR logic
             if filters.name and filters.name.contains:
@@ -88,7 +89,7 @@ class ProductRepository:
                     value = f"%{term}%"
                     name_conditions.append(self.model.name.ilike(value))
                 if name_conditions:
-                    q = q.filter(or_(*name_conditions))
+                    all_conditions.extend(name_conditions)
 
             # Description search - handle array of search terms with OR logic
             if filters.description and filters.description.contains:
@@ -97,21 +98,27 @@ class ProductRepository:
                     value = f"%{term}%"
                     desc_conditions.append(self.model.description.ilike(value))
                 if desc_conditions:
-                    q = q.filter(or_(*desc_conditions))
+                    all_conditions.extend(desc_conditions)
 
             # Quantity filters
             if filters.quantity:
-                if filters.quantity.lt is not None:
-                    q = q.filter(self.model.quantity < filters.quantity.lt)
-                if filters.quantity.gt is not None:
-                    q = q.filter(self.model.quantity > filters.quantity.gt)
+                if filters.quantity.lt is not None and filters.quantity.lt > 0:
+                    all_conditions.append(self.model.quantity < filters.quantity.lt)
+                if filters.quantity.gt is not None and filters.quantity.gt > 0:
+                    all_conditions.append(self.model.quantity > filters.quantity.gt)
 
             # Price filters
             if filters.price:
-                if filters.price.lt is not None:
-                    q = q.filter(self.model.price < filters.price.lt)
-                if filters.price.gt is not None:
-                    q = q.filter(self.model.price > filters.price.gt)
+                if filters.price.lt is not None and filters.price.lt > 0:
+                    all_conditions.append(self.model.price < filters.price.lt)
+                if filters.price.gt is not None and filters.price.gt > 0:
+                    all_conditions.append(self.model.price > filters.price.gt)
+
+            # Apply all conditions with OR logic
+            if all_conditions:
+                q = q.filter(or_(*all_conditions))
+
+            # print("\n\n", q.statement, "\n\n", filters, "\n\n")
 
             return q.all()
         except SQLAlchemyError as e:

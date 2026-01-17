@@ -30,7 +30,14 @@ export const productAPI = {
 
 // AI Search API (if available)
 export const aiAPI = {
-  search: (query) => api.get(API_URLS.AI_SEARCH, { params: { query } }),
+  search: (query, signal = null) => {
+    return api.post(API_URLS.AI_SEARCH, { user_query: query }, { 
+      signal,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+  },
 };
 
 export default api;

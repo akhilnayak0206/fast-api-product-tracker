@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const SearchBar = ({ 
   filter, 
@@ -8,25 +8,51 @@ const SearchBar = ({
 }) => {
   const [aiSearchQuery, setAiSearchQuery] = useState("");
   const [aiSearchLoading, setAiSearchLoading] = useState(false);
+  const abortControllerRef = useRef(null);
+  const debounceTimerRef = useRef(null);
+  const MIN_CHARS = 3;
 
   const handleAiSearchChange = (e) => {
-    setAiSearchQuery(e.target.value);
-    if (!e.target.value.trim()) {
-      onAiSearch("", []);
+    const query = e.target.value;
+    setAiSearchQuery(query);
+    
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
+    
+    // Clear debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    if (!query.trim() || query.length < MIN_CHARS) {
+      onAiSearch("");
+      setAiSearchLoading(false);
+      return;
+    }
+    
+    // Debounce API call
+    setAiSearchLoading(true);
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        abortControllerRef.current = new AbortController();
+        await onAiSearch(query, abortControllerRef.current.signal);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('AI search failed:', error);
+        }
+      } finally {
+        setAiSearchLoading(false);
+        // Only clear if this is still the current controller
+        if (abortControllerRef.current?.signal.aborted) {
+          abortControllerRef.current = null;
+        }
+      }
+    }, 500); // 500ms debounce
   };
 
-  const handleAiSearchSubmit = async (e) => {
-    e.preventDefault();
-    if (!aiSearchQuery.trim()) return;
-    
-    setAiSearchLoading(true);
-    try {
-      await onAiSearch(aiSearchQuery);
-    } finally {
-      setAiSearchLoading(false);
-    }
-  };
 
   return (
     <div className="stats">
@@ -40,22 +66,17 @@ const SearchBar = ({
         />
       </div>
       <div className="ai-search">
-        <form onSubmit={handleAiSearchSubmit} className="ai-search-form">
+        <div className="ai-search-form">
           <input
             type="text"
-            placeholder="AI Search... describe what you're looking for"
+            placeholder={`AI Search... describe what you're looking for (min ${MIN_CHARS} chars)`}
             value={aiSearchQuery}
             onChange={handleAiSearchChange}
-            disabled={aiSearchLoading}
           />
-          <button 
-            type="submit" 
-            className="btn btn-primary"
-            disabled={aiSearchLoading || !aiSearchQuery.trim()}
-          >
-            {aiSearchLoading ? "Searching..." : "AI Search"}
-          </button>
-        </form>
+          {aiSearchLoading && (
+            <div className="ai-search-indicator">Searching...</div>
+          )}
+        </div>
       </div>
     </div>
   );
