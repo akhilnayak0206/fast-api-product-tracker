@@ -100,19 +100,33 @@ class ProductRepository:
                 if desc_conditions:
                     all_conditions.extend(desc_conditions)
 
-            # Quantity filters
+            # Quantity filters - combine lt and gt with AND logic
             if filters.quantity:
+                quantity_conditions = []
                 if filters.quantity.lt is not None and filters.quantity.lt > 0:
-                    all_conditions.append(self.model.quantity < filters.quantity.lt)
+                    quantity_conditions.append(self.model.quantity <= filters.quantity.lt)
                 if filters.quantity.gt is not None and filters.quantity.gt > 0:
-                    all_conditions.append(self.model.quantity > filters.quantity.gt)
+                    quantity_conditions.append(self.model.quantity >= filters.quantity.gt)
+                if quantity_conditions:
+                    # Combine quantity conditions with AND logic
+                    quantity_filter = quantity_conditions[0]
+                    for condition in quantity_conditions[1:]:
+                        quantity_filter = quantity_filter & condition
+                    all_conditions.append(quantity_filter)
 
-            # Price filters
+            # Price filters - combine lt and gt with AND logic
             if filters.price:
+                price_conditions = []
                 if filters.price.lt is not None and filters.price.lt > 0:
-                    all_conditions.append(self.model.price < filters.price.lt)
+                    price_conditions.append(self.model.price <= filters.price.lt)
                 if filters.price.gt is not None and filters.price.gt > 0:
-                    all_conditions.append(self.model.price > filters.price.gt)
+                    price_conditions.append(self.model.price >= filters.price.gt)
+                if price_conditions:
+                    # Combine price conditions with AND logic
+                    price_filter = price_conditions[0]
+                    for condition in price_conditions[1:]:
+                        price_filter = price_filter & condition
+                    all_conditions.append(price_filter)
 
             # Apply all conditions with OR logic
             if all_conditions:
