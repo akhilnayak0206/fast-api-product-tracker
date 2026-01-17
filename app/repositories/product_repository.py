@@ -1,8 +1,9 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-import database_models
-from app.models.schemas import ProductCreate, ProductUpdate
+from sqlalchemy import or_
+from app.models import Product, Base
+from app.models.schemas import ProductCreate, ProductUpdate, ProductFilters
 from uuid import UUID
 
 
@@ -11,16 +12,16 @@ class ProductRepository:
     
     def __init__(self, db: Session):
         self.db = db
-        self.model = database_models.Product
+        self.model = Product
     
-    def get_all(self) -> List[database_models.Product]:
+    def get_all(self) -> List[Product]:
         """Retrieve all products from the database"""
         try:
             return self.db.query(self.model).all()
         except SQLAlchemyError as e:
             raise Exception(f"Error retrieving products: {str(e)}")
     
-    def get_by_id(self, product_id: UUID) -> Optional[database_models.Product]:
+    def get_by_id(self, product_id: UUID) -> Optional[Product]:
         """Retrieve a product by its UUID"""
         try:
             return self.db.query(self.model).filter(
@@ -29,7 +30,7 @@ class ProductRepository:
         except SQLAlchemyError as e:
             raise Exception(f"Error retrieving product: {str(e)}")
     
-    def create(self, product_data: ProductCreate) -> database_models.Product:
+    def create(self, product_data: ProductCreate) -> Product:
         """Create a new product in the database"""
         try:
             db_product = self.model(**product_data.model_dump())
@@ -42,7 +43,7 @@ class ProductRepository:
             self.db.rollback()
             raise Exception(f"Error creating product: {str(e)}")
     
-    def update(self, product_id: UUID, product_data: ProductUpdate) -> Optional[database_models.Product]:
+    def update(self, product_id: UUID, product_data: ProductUpdate) -> Optional[Product]:
         """Update an existing product in the database"""
         try:
             db_product = self.get_by_id(product_id)
@@ -74,6 +75,47 @@ class ProductRepository:
         except SQLAlchemyError as e:
             self.db.rollback()
             raise Exception(f"Error deleting product: {str(e)}")
+    
+    def get_with_filters(self, filters: ProductFilters) -> List[Product]:
+        """Retrieve products with AI-generated filters"""
+        try:
+            q = self.db.query(self.model)
+
+            # Name search - handle array of search terms with OR logic
+            if filters.name and filters.name.contains:
+                name_conditions = []
+                for term in filters.name.contains:
+                    value = f"%{term}%"
+                    name_conditions.append(self.model.name.ilike(value))
+                if name_conditions:
+                    q = q.filter(or_(*name_conditions))
+
+            # Description search - handle array of search terms with OR logic
+            if filters.description and filters.description.contains:
+                desc_conditions = []
+                for term in filters.description.contains:
+                    value = f"%{term}%"
+                    desc_conditions.append(self.model.description.ilike(value))
+                if desc_conditions:
+                    q = q.filter(or_(*desc_conditions))
+
+            # Quantity filters
+            if filters.quantity:
+                if filters.quantity.lt is not None:
+                    q = q.filter(self.model.quantity < filters.quantity.lt)
+                if filters.quantity.gt is not None:
+                    q = q.filter(self.model.quantity > filters.quantity.gt)
+
+            # Price filters
+            if filters.price:
+                if filters.price.lt is not None:
+                    q = q.filter(self.model.price < filters.price.lt)
+                if filters.price.gt is not None:
+                    q = q.filter(self.model.price > filters.price.gt)
+
+            return q.all()
+        except SQLAlchemyError as e:
+            raise Exception(f"Error retrieving filtered products: {str(e)}")
     
     def count(self) -> int:
         """Count the total number of products"""

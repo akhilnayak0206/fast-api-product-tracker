@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from app.config.settings import settings
-import database_models
+from app.models import Base, Product
 
 # Create database engine
 engine = create_engine(
@@ -41,10 +41,10 @@ def init_db():
     
     try:
         # Create all tables
-        database_models.Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
         
         # Check if products already exist in the database
-        count = db.query(database_models.Product).count()
+        count = db.query(Product).count()
         if count > 0:
             return  # Database already has data, skip initialization
         
@@ -57,7 +57,7 @@ def init_db():
         ]
         
         for product_data in sample_products:
-            db_product = database_models.Product(**product_data.model_dump())
+            db_product = Product(**product_data.model_dump())
             db.add(db_product)
         db.commit()
     except Exception as e:

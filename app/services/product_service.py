@@ -2,7 +2,6 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.repositories.product_repository import ProductRepository
 from app.models.schemas import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
-import database_models
 from uuid import UUID
 
 

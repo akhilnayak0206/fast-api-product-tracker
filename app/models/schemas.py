@@ -1,6 +1,25 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
+
+
+class ProductFilter(BaseModel):
+    """Schema for AI-generated product filters"""
+    contains: Optional[List[str]] = None
+
+
+class NumericFilter(BaseModel):
+    """Schema for numeric range filters"""
+    lt: Optional[float] = None
+    gt: Optional[float] = None
+
+
+class ProductFilters(BaseModel):
+    """Schema for all product filters"""
+    name: Optional[ProductFilter] = None
+    description: Optional[ProductFilter] = None
+    quantity: Optional[NumericFilter] = None
+    price: Optional[NumericFilter] = None
 
 
 class ProductBase(BaseModel):
