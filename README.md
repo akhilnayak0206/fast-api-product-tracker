@@ -169,6 +169,16 @@ Here's a preview of the Product Tracker application:
 - [Uvicorn](https://www.uvicorn.org/) - ASGI server implementation
 - [python-dotenv](https://github.com/theskumar/python-dotenv) - Environment variable management
 
+## Architecture
+
+**app/api/**: API endpoints and routing (v1 for versioned endpoints, base for shared functionality)  
+**app/services/**: Business logic layer (product_service for CRUD operations, ai_service for AI-powered features)  
+**app/repositories/**: Data access layer (product_repository handles database operations)  
+**app/models/**: Database models and Pydantic schemas for data validation  
+**app/core/**: Core configuration (database connection, settings)  
+
+**Data Flow**: API → Service → Repository → Database → Repository → Service → API Response
+
 ## Special Thanks
 
 Thanks to Telusko

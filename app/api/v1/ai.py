@@ -4,7 +4,6 @@ from app.services.ai_service import get_ai_product_filters
 from app.repositories.product_repository import ProductRepository
 from app.core.database import get_db
 from app.models.schemas import ProductResponse, ProductListResponse, ProductQuery
-from app.utils.ai_utils import llm_call
 
 router = APIRouter()
 
@@ -12,8 +11,11 @@ router = APIRouter()
 @router.post("/debug/llm-filter")
 async def debug_ai_product_filters(user_query: str):
     """Debug endpoint to test AI-generated product filters from natural language."""
-    ai_response = get_ai_product_filters(user_query)
-    return {"ai_response": ai_response}
+    try:
+        ai_response = get_ai_product_filters(user_query)
+        return {"ai_response": ai_response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating AI filters: {str(e)}")
 
 
 @router.post("/product-search", response_model=ProductListResponse)
@@ -38,4 +40,6 @@ async def search_products_with_ai(
             count=len(product_responses)
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching products: {str(e)}")
+        # Log the error for debugging
+        print(f"Error in search_products_with_ai: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error searching products: {str(e)}")
